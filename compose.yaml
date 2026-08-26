@@ -1,0 +1,153 @@
+name: vprofile-floci
+
+services:
+  floci:
+    image: ${FLOCI_IMAGE:-floci/floci:1.7.0}
+    ports:
+      - "4566:4566"
+      - "9169:9169"
+      - "${FLOCI_ALB_HTTP_PORT:-8088}:80"
+      - "6379-6399:6379-6399"
+      - "7001-7099:7001-7099"
+    environment:
+      FLOCI_HOSTNAME: floci
+      FLOCI_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-us-east-1}
+      FLOCI_DEFAULT_ACCOUNT_ID: ${AWS_ACCOUNT_ID:-000000000000}
+      FLOCI_STORAGE_MODE: persistent
+      FLOCI_STORAGE_PERSISTENT_PATH: /app/data
+      FLOCI_SERVICES_DOCKER_NETWORK: vprofile-floci-network
+      FLOCI_SERVICES_EC2_AWS_FAITHFUL_PRIVATE_IP: "false"
+      FLOCI_DOCKER_EXTRA_LABELS_0__KEY: com.vprofile.project
+      FLOCI_DOCKER_EXTRA_LABELS_0__VALUE: vprofile-floci
+      FLOCI_DOCKER_LOG_MAX_SIZE: 10m
+      FLOCI_DOCKER_LOG_MAX_FILE: "3"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - floci-data:/app/data
+    networks:
+      - platform
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0.46
+    profiles: ["stack"]
+    command:
+      - --default-authentication-plugin=mysql_native_password
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-accounts}
+      MYSQL_USER: ${MYSQL_USER:-admin}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-admin123}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root123}
+    ports:
+      - "${MYSQL_HOST_PORT:-33060}:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+      - ./src/main/resources/db_backup.sql:/docker-entrypoint-initdb.d/10-vprofile.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -u$$MYSQL_USER -p$$MYSQL_PASSWORD --silent"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks:
+      platform:
+        aliases: ["db01"]
+    restart: unless-stopped
+
+  cache:
+    image: memcached:1.6.45-alpine3.24
+    profiles: ["stack"]
+    command: ["memcached", "-m", "128", "-I", "4m", "-v"]
+    healthcheck:
+      test: ["CMD-SHELL", "printf 'version\\r\\n' | nc -w 1 127.0.0.1 11211 | grep -q VERSION"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      platform:
+        aliases: ["mc01"]
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.13.7-management-alpine
+    profiles: ["stack"]
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-test}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-test}
+    ports:
+      - "${RABBITMQ_MANAGEMENT_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    networks:
+      platform:
+        aliases: ["rmq01"]
+    restart: unless-stopped
+
+  app:
+    build:
+      context: .
+      dockerfile: containers/app/Dockerfile
+    image: vprofile-app:floci-local
+    profiles: ["stack"]
+    environment:
+      JAVA_TOOL_OPTIONS: >-
+        -Djdbc.url=jdbc:mysql://db01:3306/${MYSQL_DATABASE:-accounts}?useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull&useSSL=false&allowPublicKeyRetrieval=true
+        -Djdbc.username=${MYSQL_USER:-admin}
+        -Djdbc.password=${MYSQL_PASSWORD:-admin123}
+        -Dmemcached.active.host=mc01
+        -Dmemcached.active.port=11211
+        -Drabbitmq.address=rmq01
+        -Drabbitmq.port=5672
+        -Drabbitmq.username=${RABBITMQ_USER:-test}
+        -Drabbitmq.password=${RABBITMQ_PASSWORD:-test}
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "bash -ec 'exec 3<>/dev/tcp/127.0.0.1/8080'"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
+    networks:
+      platform:
+        aliases: ["app01"]
+    restart: unless-stopped
+
+  web:
+    image: nginx:1.31.4-alpine3.24
+    profiles: ["stack"]
+    ports:
+      - "${VPROFILE_HTTP_PORT:-8080}:80"
+    volumes:
+      - ./containers/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/nginx-health"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - platform
+    restart: unless-stopped
+
+networks:
+  platform:
+    name: vprofile-floci-network
+
+volumes:
+  floci-data:
+  db-data:
+  rabbitmq-data:

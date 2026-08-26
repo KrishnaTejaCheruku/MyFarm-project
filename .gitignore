@@ -1,0 +1,13 @@
+.DS_Store
+.env
+.floci/
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+**/terraform.tfvars
+target/
+coverage/
+*.log
+*.pem
+*.key

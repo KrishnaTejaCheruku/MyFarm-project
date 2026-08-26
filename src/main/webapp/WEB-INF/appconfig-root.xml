@@ -15,6 +15,11 @@
     <!-- Scans within the base package of the application for @Component classes to configure as beans -->
     <context:component-scan base-package="com.visualpathit.account.*"/>
 
-    <context:property-placeholder location="classpath:application.properties"/>
+    <!--
+      Local defaults live in application.properties. Docker, ECS, EC2 and EKS
+      pass environment-specific values as -D system properties, which must win.
+    -->
+    <context:property-placeholder location="classpath:application.properties"
+                                  system-properties-mode="OVERRIDE"/>
 
 </beans>
