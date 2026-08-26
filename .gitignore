@@ -11,3 +11,27 @@ coverage/
 *.log
 *.pem
 *.key
+
+# Java IDEs
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+hs_err_pid*
+
+# Node and Vite
+node_modules/
+dist/
+.vite/
+
+# Cypress generated artifacts
+cypress/screenshots/
+cypress/videos/
+cypress/downloads/
+
+# Local environment variants
+.env.*
+!.env.example
+!**/.env.example
