@@ -47,6 +47,10 @@ class ServiceAreaEntity {
 	protected ServiceAreaEntity() {
 	}
 
+	Long id() {
+		return id;
+	}
+
 	String code() {
 		return code;
 	}

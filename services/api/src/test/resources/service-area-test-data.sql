@@ -1,3 +1,5 @@
+DELETE FROM delivery_subscription_plan;
+DELETE FROM delivery_window;
 DELETE FROM delivery_service_area_pincode;
 DELETE FROM delivery_service_area;
 
