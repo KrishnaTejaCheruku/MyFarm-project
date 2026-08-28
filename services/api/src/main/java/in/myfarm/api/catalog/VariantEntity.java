@@ -37,8 +37,8 @@ class VariantEntity {
 	@Column(nullable = false, length = 24)
 	private CatalogUnit unit;
 
-	@Column(name = "price_minor", nullable = false)
-	private long priceMinor;
+	@Column(name = "price_inr", nullable = false)
+	private long priceInr;
 
 	@Column(nullable = false, length = 3)
 	private String currency;
@@ -84,8 +84,8 @@ class VariantEntity {
 		return unit;
 	}
 
-	long priceMinor() {
-		return priceMinor;
+	long priceInr() {
+		return priceInr;
 	}
 
 	String currency() {

@@ -54,8 +54,8 @@ class CatalogApiIntegrationTests {
 						.value("millilitre"))
 				.andExpect(jsonPath("$.items[0].variants[0].price.currency")
 						.value("INR"))
-				.andExpect(jsonPath("$.items[0].variants[0].price.minorUnits")
-						.value(3800))
+				.andExpect(jsonPath("$.items[0].variants[0].price.amountInr")
+						.value(38))
 				.andExpect(jsonPath("$.items[0].variants[0].subscriptionAllowed")
 						.value(true));
 	}

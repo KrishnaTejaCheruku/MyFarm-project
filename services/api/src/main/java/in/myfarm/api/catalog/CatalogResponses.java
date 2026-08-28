@@ -19,7 +19,7 @@ public final class CatalogResponses {
 
 	public record Money(
 			String currency,
-			long minorUnits,
+			long amountInr,
 			boolean taxInclusive) {
 	}
 

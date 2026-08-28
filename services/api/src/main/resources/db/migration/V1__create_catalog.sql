@@ -52,7 +52,7 @@ CREATE TABLE catalog_variant (
     sku VARCHAR(80) NOT NULL,
     quantity DECIMAL(10, 3) NOT NULL,
     unit VARCHAR(24) NOT NULL,
-    price_minor BIGINT UNSIGNED NOT NULL,
+    price_inr BIGINT UNSIGNED NOT NULL,
     currency VARCHAR(3) NOT NULL DEFAULT 'INR',
     price_tax_inclusive BOOLEAN NOT NULL DEFAULT TRUE,
     gst_basis_points SMALLINT UNSIGNED NOT NULL DEFAULT 0,

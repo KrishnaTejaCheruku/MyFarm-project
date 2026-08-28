@@ -27,23 +27,23 @@ INSERT INTO catalog_product (
     );
 
 INSERT INTO catalog_variant (
-    id, product_id, sku, quantity, unit, price_minor, currency,
+    id, product_id, sku, quantity, unit, price_inr, currency,
     price_tax_inclusive, gst_basis_points, subscription_allowed,
     image_key, sort_order, active, version
 ) VALUES
     (
-        3001, 2001, 'MILK-COW-500ML', 500.000, 'MILLILITRE', 3800, 'INR',
+        3001, 2001, 'MILK-COW-500ML', 500.000, 'MILLILITRE', 38, 'INR',
         TRUE, 0, TRUE, 'catalog/milk/cow-500ml.jpg', 10, TRUE, 0
     ),
     (
-        3002, 2001, 'MILK-COW-1L', 1.000, 'LITRE', 7200, 'INR',
+        3002, 2001, 'MILK-COW-1L', 1.000, 'LITRE', 72, 'INR',
         TRUE, 0, TRUE, 'catalog/milk/cow-1l.jpg', 20, TRUE, 0
     ),
     (
-        3003, 2001, 'MILK-COW-INACTIVE', 2.000, 'LITRE', 14000, 'INR',
+        3003, 2001, 'MILK-COW-INACTIVE', 2.000, 'LITRE', 140, 'INR',
         TRUE, 0, FALSE, NULL, 30, FALSE, 0
     ),
     (
-        3004, 2002, 'EGG-FARM-6', 6.000, 'PIECE', 11000, 'INR',
+        3004, 2002, 'EGG-FARM-6', 6.000, 'PIECE', 110, 'INR',
         TRUE, 0, FALSE, 'catalog/eggs/farm-6.jpg', 10, TRUE, 0
     );

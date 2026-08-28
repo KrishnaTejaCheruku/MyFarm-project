@@ -124,7 +124,7 @@ class CatalogQueryService {
 				variant.unit().name().toLowerCase(Locale.ROOT),
 				new CatalogResponses.Money(
 						variant.currency(),
-						variant.priceMinor(),
+						variant.priceInr(),
 						variant.priceTaxInclusive()),
 				variant.gstBasisPoints(),
 				variant.subscriptionAllowed(),
