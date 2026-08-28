@@ -56,7 +56,11 @@ class OtpService {
 		return code;
 	}
 
-	@Transactional
+	// noRollbackFor: a wrong attempt must still increment and persist
+	// OtpChallengeEntity.attempts even though the method always throws
+	// on that path -- otherwise Spring's default rollback-on-RuntimeException
+	// undoes the increment and lockout never actually engages.
+	@Transactional(noRollbackFor = InvalidOtpException.class)
 	void verifyOtp(String phone, String code) {
 		OtpChallengeEntity challenge = challengeRepository
 				.findFirstByPhoneAndConsumedAtIsNullOrderByIdDesc(phone)
