@@ -59,6 +59,16 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-jackson</artifactId>
 		</dependency>
+		<!-- RestClient.Builder autoconfiguration lives in its own starter in
+			this generation too (same story as spring-boot-starter-jackson):
+			spring-boot-starter-webmvc-test pulls it in transitively for
+			tests only, so KeycloakIdentityBridge's RestClient.Builder
+			injection resolved fine under @SpringBootTest but threw
+			NoSuchBeanDefinitionException at real runtime without this. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-restclient</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
