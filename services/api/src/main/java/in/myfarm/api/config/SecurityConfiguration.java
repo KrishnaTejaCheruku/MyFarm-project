@@ -9,6 +9,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -39,16 +40,32 @@ class SecurityConfiguration {
 						.permitAll()
 						.requestMatchers("/actuator/prometheus")
 						.hasAuthority("SCOPE_ops:metrics")
-						// TODO(identity phase): guest checkout only until
-						// Keycloak/OTP lands -- POST should require an
-						// authenticated customer principal once it does.
-						.requestMatchers(HttpMethod.POST, "/api/v1/orders")
+						// Pre-auth by definition -- this is how a customer
+						// gets a token in the first place.
+						.requestMatchers(HttpMethod.POST, "/api/v1/auth/otp/**")
 						.permitAll()
+						// Identity phase landed: guest checkout is over,
+						// placing an order now requires a customer-role
+						// token minted via the OTP flow above.
+						.requestMatchers(HttpMethod.POST, "/api/v1/orders")
+						.hasRole("customer")
 						.requestMatchers(HttpMethod.GET, "/api/v1/orders/**")
 						.permitAll()
+						.requestMatchers("/api/v1/admin/**")
+						.hasRole("admin")
 						.anyRequest()
-						.authenticated());
+						.authenticated())
+				.oauth2ResourceServer(oauth2 -> oauth2
+						.jwt(jwt -> jwt.jwtAuthenticationConverter(
+								jwtAuthenticationConverter())));
 		return http.build();
+	}
+
+	private JwtAuthenticationConverter jwtAuthenticationConverter() {
+		JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+		converter.setJwtGrantedAuthoritiesConverter(
+				new KeycloakJwtAuthoritiesConverter());
+		return converter;
 	}
 
 	private CorsConfigurationSource corsConfigurationSource() {

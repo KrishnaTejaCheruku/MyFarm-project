@@ -31,7 +31,8 @@ class OrderService {
 	}
 
 	@Transactional
-	OrderResponses.Order placeOrder(OrderRequests.PlaceOrder request) {
+	OrderResponses.Order placeOrder(
+			OrderRequests.PlaceOrder request, String customerSubjectId) {
 		if (!deliveryAvailability.isServiceAreaActive(
 				request.serviceAreaCode())) {
 			throw new InvalidOrderException(
@@ -53,6 +54,7 @@ class OrderService {
 				request.deliveryWindowCode(),
 				request.customerName(),
 				request.customerPhone(),
+				customerSubjectId,
 				request.deliveryAddressLine1(),
 				request.deliveryAddressLine2(),
 				request.deliveryPincode(),
@@ -110,6 +112,7 @@ class OrderService {
 				order.orderNumber(),
 				order.serviceAreaCode(),
 				order.deliveryWindowCode(),
+				order.customerSubjectId(),
 				order.status().name(),
 				order.paymentMethod().name(),
 				order.subtotalInr(),

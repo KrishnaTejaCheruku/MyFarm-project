@@ -155,6 +155,16 @@
 			<artifactId>testcontainers-rabbitmq</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- Real Keycloak for integration tests -- imports the same
+			infra/identity/myfarm-realm.json used for local dev (symlinked
+			into src/test/resources), so realm config is exercised for real
+			rather than mocked. -->
+		<dependency>
+			<groupId>com.github.dasniko</groupId>
+			<artifactId>testcontainers-keycloak</artifactId>
+			<version>3.8.0</version>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>

@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.jayway.jsonpath.JsonPath;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.amqp.core.AmqpAdmin;
 import org.springframework.amqp.core.AnonymousQueue;
@@ -20,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
@@ -34,6 +36,12 @@ class OrderApiIntegrationTests {
 	private static final String ORDERS_EXCHANGE = "myfarm.orders";
 	private static final String ORDER_PLACED_ROUTING_KEY = "order.placed";
 
+	// A customer, identity-wise, is just whoever most recently verified
+	// this phone's OTP -- distinct from any phone appearing in
+	// commerce_order's own free-text customerPhone field, which is
+	// unrelated (order-test-data.sql doesn't seed Keycloak users).
+	private static final String TEST_CUSTOMER_PHONE = "9876500001";
+
 	@Autowired
 	private MockMvc mockMvc;
 
@@ -42,6 +50,40 @@ class OrderApiIntegrationTests {
 
 	@Autowired
 	private RabbitTemplate rabbitTemplate;
+
+	private String customerToken;
+
+	@BeforeEach
+	void obtainCustomerToken() throws Exception {
+		mockMvc.perform(post("/api/v1/auth/otp/request")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"phone\": \"" + TEST_CUSTOMER_PHONE + "\"}"))
+				.andExpect(status().isAccepted());
+
+		// myfarm.otp.expose-in-response defaults true locally/in tests
+		// -- there's no SMS gateway to actually deliver this through.
+		String code = otpFor(TEST_CUSTOMER_PHONE);
+
+		MvcResult result = mockMvc.perform(post("/api/v1/auth/otp/verify")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"phone\": \"" + TEST_CUSTOMER_PHONE
+						+ "\", \"code\": \"" + code + "\"}"))
+				.andExpect(status().isOk())
+				.andReturn();
+
+		customerToken = JsonPath.read(
+				result.getResponse().getContentAsString(), "$.accessToken");
+	}
+
+	private String otpFor(String phone) throws Exception {
+		MvcResult result = mockMvc.perform(post("/api/v1/auth/otp/request")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("{\"phone\": \"" + phone + "\"}"))
+				.andExpect(status().isAccepted())
+				.andReturn();
+		return JsonPath.read(
+				result.getResponse().getContentAsString(), "$.devOtp");
+	}
 
 	@Test
 	void placesACodOrderConfirmsItImmediatelyAndPublishesAnEvent()
@@ -54,6 +96,7 @@ class OrderApiIntegrationTests {
 				.with(ORDER_PLACED_ROUTING_KEY));
 
 		MvcResult result = mockMvc.perform(post("/api/v1/orders")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + customerToken)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(placeOrderJson("COD")))
 				.andExpect(status().isCreated())
@@ -74,10 +117,16 @@ class OrderApiIntegrationTests {
 
 		String orderNumber = JsonPath.read(
 				result.getResponse().getContentAsString(), "$.orderNumber");
+		String customerSubjectId = JsonPath.read(
+				result.getResponse().getContentAsString(),
+				"$.customerSubjectId");
+		assertThat(customerSubjectId).isNotBlank();
 
 		mockMvc.perform(get("/api/v1/orders/" + orderNumber))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.orderNumber").value(orderNumber))
+				.andExpect(jsonPath("$.customerSubjectId")
+						.value(customerSubjectId))
 				.andExpect(jsonPath("$.subtotalInr").value(80));
 
 		Message message = rabbitTemplate.receive(probeQueue.getName(), 5000);
@@ -89,11 +138,20 @@ class OrderApiIntegrationTests {
 	@Test
 	void placesAnOnlineOrderAsPendingPayment() throws Exception {
 		mockMvc.perform(post("/api/v1/orders")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + customerToken)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(placeOrderJson("ONLINE_UPI")))
 				.andExpect(status().isCreated())
 				.andExpect(jsonPath("$.status").value("PENDING_PAYMENT"))
 				.andExpect(jsonPath("$.paymentMethod").value("ONLINE_UPI"));
+	}
+
+	@Test
+	void rejectsOrderPlacementWithoutAuthentication() throws Exception {
+		mockMvc.perform(post("/api/v1/orders")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content(placeOrderJson("COD")))
+				.andExpect(status().isUnauthorized());
 	}
 
 	@Test
@@ -112,6 +170,7 @@ class OrderApiIntegrationTests {
 				""";
 
 		mockMvc.perform(post("/api/v1/orders")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + customerToken)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(body))
 				.andExpect(status().isUnprocessableEntity())
@@ -135,6 +194,7 @@ class OrderApiIntegrationTests {
 				""";
 
 		mockMvc.perform(post("/api/v1/orders")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + customerToken)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(body))
 				.andExpect(status().isUnprocessableEntity());
@@ -156,6 +216,7 @@ class OrderApiIntegrationTests {
 				""";
 
 		mockMvc.perform(post("/api/v1/orders")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + customerToken)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(body))
 				.andExpect(status().isUnprocessableEntity());
@@ -177,6 +238,7 @@ class OrderApiIntegrationTests {
 				""";
 
 		mockMvc.perform(post("/api/v1/orders")
+						.header(HttpHeaders.AUTHORIZATION, "Bearer " + customerToken)
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(body))
 				.andExpect(status().isBadRequest());

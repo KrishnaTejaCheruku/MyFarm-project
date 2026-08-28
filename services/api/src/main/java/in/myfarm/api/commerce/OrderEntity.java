@@ -43,6 +43,13 @@ class OrderEntity {
 	@Column(name = "customer_phone", nullable = false, length = 10, updatable = false)
 	private String customerPhone;
 
+	// The Keycloak subject (JWT "sub" claim) that placed this order --
+	// identity/OTP (phase 2) requires an authenticated customer, so
+	// this is always populated, unlike customerName/customerPhone
+	// which remain free-text checkout fields.
+	@Column(name = "customer_subject_id", nullable = false, length = 36, updatable = false)
+	private String customerSubjectId;
+
 	@Column(name = "delivery_address_line1", nullable = false, length = 200, updatable = false)
 	private String deliveryAddressLine1;
 
@@ -80,6 +87,7 @@ class OrderEntity {
 			String deliveryWindowCode,
 			String customerName,
 			String customerPhone,
+			String customerSubjectId,
 			String deliveryAddressLine1,
 			String deliveryAddressLine2,
 			String deliveryPincode,
@@ -89,6 +97,7 @@ class OrderEntity {
 		this.deliveryWindowCode = deliveryWindowCode;
 		this.customerName = customerName;
 		this.customerPhone = customerPhone;
+		this.customerSubjectId = customerSubjectId;
 		this.deliveryAddressLine1 = deliveryAddressLine1;
 		this.deliveryAddressLine2 = deliveryAddressLine2;
 		this.deliveryPincode = deliveryPincode;
@@ -124,6 +133,10 @@ class OrderEntity {
 
 	String deliveryWindowCode() {
 		return deliveryWindowCode;
+	}
+
+	String customerSubjectId() {
+		return customerSubjectId;
 	}
 
 	PaymentMethod paymentMethod() {

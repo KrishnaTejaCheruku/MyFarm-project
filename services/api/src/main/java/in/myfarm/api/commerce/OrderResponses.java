@@ -22,6 +22,7 @@ public final class OrderResponses {
 			String orderNumber,
 			String serviceAreaCode,
 			String deliveryWindowCode,
+			String customerSubjectId,
 			String status,
 			String paymentMethod,
 			long subtotalInr,

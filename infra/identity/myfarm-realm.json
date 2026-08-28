@@ -1,0 +1,111 @@
+{
+  "realm": "myfarm",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "roles": {
+    "realm": [
+      {
+        "name": "customer",
+        "description": "MyFarm customer, authenticated via phone OTP"
+      },
+      {
+        "name": "admin",
+        "description": "MyFarm administrator / back-office staff"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "storefront-web",
+      "name": "MyFarm storefront (browser)",
+      "enabled": true,
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:5173/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173"
+      ],
+      "rootUrl": "http://localhost:5173"
+    },
+    {
+      "clientId": "identity-bridge",
+      "name": "MyFarm identity bridge (services/api, server-side only)",
+      "enabled": true,
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": true,
+      "secret": "myfarm-identity-bridge-secret",
+      "redirectUris": [],
+      "webOrigins": []
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "enabled": true,
+      "emailVerified": false,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ChangeMeOnFirstLogin!",
+          "temporary": true
+        }
+      ],
+      "requiredActions": [
+        "UPDATE_PASSWORD",
+        "CONFIGURE_TOTP"
+      ],
+      "realmRoles": [
+        "admin"
+      ]
+    },
+    {
+      "username": "qa-admin",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "qa-admin-test-password",
+          "temporary": false
+        }
+      ],
+      "requiredActions": [],
+      "realmRoles": [
+        "admin"
+      ],
+      "attributes": {
+        "note": [
+          "automated-test-fixture-only"
+        ]
+      }
+    },
+    {
+      "username": "service-account-identity-bridge",
+      "enabled": true,
+      "serviceAccountClientId": "identity-bridge",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users",
+          "query-users"
+        ]
+      }
+    }
+  ]
+}
