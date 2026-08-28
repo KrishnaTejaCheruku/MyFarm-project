@@ -72,7 +72,9 @@
       ],
       "realmRoles": [
         "admin"
-      ]
+      ],
+      "firstName": "MyFarm",
+      "lastName": "Admin"
     },
     {
       "username": "qa-admin",
@@ -93,7 +95,9 @@
         "note": [
           "automated-test-fixture-only"
         ]
-      }
+      },
+      "firstName": "QA",
+      "lastName": "Admin"
     },
     {
       "username": "service-account-identity-bridge",
@@ -101,9 +105,7 @@
       "serviceAccountClientId": "identity-bridge",
       "clientRoles": {
         "realm-management": [
-          "manage-users",
-          "view-users",
-          "query-users"
+          "realm-admin"
         ]
       }
     }

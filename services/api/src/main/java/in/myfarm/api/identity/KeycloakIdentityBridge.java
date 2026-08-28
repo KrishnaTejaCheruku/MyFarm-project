@@ -28,8 +28,8 @@ import org.springframework.web.client.RestClient;
  *
  * All calls here run server-side, authenticated as the identity-bridge
  * confidential client's own service account (client_credentials grant,
- * granted realm-management's manage-users/view-users/query-users roles
- * -- see infra/identity/myfarm-realm.json). Nothing in this class is
+ * granted realm-management's realm-admin role, not master-realm-wide
+ * admin -- see infra/identity/myfarm-realm.json). Nothing in this class is
  * reachable by a browser directly.
  */
 @Component
@@ -83,9 +83,19 @@ class KeycloakIdentityBridge {
 			return String.valueOf(found.get(0).get("id"));
 		}
 
+		// Keycloak's default declarative User Profile marks firstName/
+		// lastName as required -- a user created without them is treated
+		// as "not fully set up" for direct grant purposes, same as a
+		// pending required action, even with an empty requiredActions
+		// list (confirmed: keycloak/keycloak#36108). No real name exists
+		// yet at OTP-signup time (checkout captures one per order, not
+		// tied to identity), so these are placeholders the customer
+		// never sees.
 		Map<String, Object> newUser = Map.of(
 				"username", phone,
 				"enabled", true,
+				"firstName", "Customer",
+				"lastName", phone,
 				"attributes", Map.of("phoneNumber", List.of(phone)));
 
 		ResponseEntity<Void> response = restClient.post()
