@@ -107,4 +107,12 @@ class VariantEntity {
 	String imageKey() {
 		return imageKey;
 	}
+
+	Long id() {
+		return id;
+	}
+
+	boolean active() {
+		return active;
+	}
 }

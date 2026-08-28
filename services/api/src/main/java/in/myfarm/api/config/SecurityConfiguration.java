@@ -39,6 +39,13 @@ class SecurityConfiguration {
 						.permitAll()
 						.requestMatchers("/actuator/prometheus")
 						.hasAuthority("SCOPE_ops:metrics")
+						// TODO(identity phase): guest checkout only until
+						// Keycloak/OTP lands -- POST should require an
+						// authenticated customer principal once it does.
+						.requestMatchers(HttpMethod.POST, "/api/v1/orders")
+						.permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/v1/orders/**")
+						.permitAll()
 						.anyRequest()
 						.authenticated());
 		return http.build();
