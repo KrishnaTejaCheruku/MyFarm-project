@@ -23,6 +23,14 @@ export function ProductPage() {
 			<Link to={`/categories/${product.categoryCode}`}>
 				← Back
 			</Link>
+			{product.variants[0] && (
+				<img
+					src={`/products/${product.variants[0].imageKey}.svg`}
+					alt=""
+					width={160}
+					height={160}
+				/>
+			)}
 			<h1>{product.name.en}</h1>
 			<p>{product.description.en}</p>
 
@@ -30,6 +38,12 @@ export function ProductPage() {
 			<ul className="variant-list">
 				{product.variants.map((variant) => (
 					<li key={variant.sku}>
+						<img
+							src={`/products/${variant.imageKey}.svg`}
+							alt=""
+							width={40}
+							height={40}
+						/>
 						<span>
 							{variant.quantity} {variant.unit}
 						</span>

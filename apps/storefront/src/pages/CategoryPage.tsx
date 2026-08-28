@@ -29,6 +29,14 @@ export function CategoryPage() {
 						{productsQuery.data.items.map((product) => (
 							<li key={product.code}>
 								<Link to={`/products/${product.slug}`}>
+									{product.variants[0] && (
+										<img
+											src={`/products/${product.variants[0].imageKey}.svg`}
+											alt=""
+											width={96}
+											height={96}
+										/>
+									)}
 									<h3>{product.name.en}</h3>
 									{product.variants[0] && (
 										<p>

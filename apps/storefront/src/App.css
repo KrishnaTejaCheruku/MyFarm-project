@@ -37,6 +37,15 @@ h1 {
 .product-grid a {
 	text-decoration: none;
 	color: inherit;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
+	gap: 0.4rem;
+}
+
+.product-grid img {
+	border-radius: 12px;
 }
 
 .variant-list {
@@ -54,6 +63,10 @@ h1 {
 	border: 1px solid #ddd;
 	border-radius: 8px;
 	padding: 0.5rem 0.75rem;
+}
+
+.variant-list img {
+	border-radius: 8px;
 }
 
 .badge {
