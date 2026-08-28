@@ -1,5 +1,7 @@
 package in.myfarm.api.commerce;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
@@ -19,8 +21,13 @@ class CommerceMessagingConfiguration {
 		return new TopicExchange(ORDERS_EXCHANGE, true, false);
 	}
 
+	// Built from Spring Boot's own autoconfigured ObjectMapper (the same
+	// one already serializing REST JSON responses) rather than
+	// Jackson2JsonMessageConverter's no-arg constructor, which goes
+	// through a Spring AMQP helper that references a newer Jackson class
+	// than what actually resolves on this classpath.
 	@Bean
-	MessageConverter rabbitMessageConverter() {
-		return new Jackson2JsonMessageConverter();
+	MessageConverter rabbitMessageConverter(ObjectMapper objectMapper) {
+		return new Jackson2JsonMessageConverter(objectMapper);
 	}
 }

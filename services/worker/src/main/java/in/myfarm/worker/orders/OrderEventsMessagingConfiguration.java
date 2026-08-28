@@ -1,5 +1,7 @@
 package in.myfarm.worker.orders;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Queue;
@@ -39,8 +41,10 @@ class OrderEventsMessagingConfiguration {
 				.with(ORDER_PLACED_ROUTING_KEY);
 	}
 
+	// See services/api's CommerceMessagingConfiguration for why this
+	// takes Spring Boot's ObjectMapper explicitly.
 	@Bean
-	MessageConverter rabbitMessageConverter() {
-		return new Jackson2JsonMessageConverter();
+	MessageConverter rabbitMessageConverter(ObjectMapper objectMapper) {
+		return new Jackson2JsonMessageConverter(objectMapper);
 	}
 }
