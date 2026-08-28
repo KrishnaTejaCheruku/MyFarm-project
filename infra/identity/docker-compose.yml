@@ -3,25 +3,74 @@
 # (services/api/src/test/java/in/myfarm/api/TestcontainersConfiguration.java),
 # importing this exact same realm file (symlinked into
 # services/api/src/test/resources/myfarm-realm.json) so dev and test
-# never drift apart.
+# never drift apart. Tests keep Keycloak on its default fast/ephemeral
+# storage deliberately -- every test run gets a fresh container anyway,
+# so a real Postgres backend there would only add startup time with no
+# benefit. This compose file is different: it's meant to be a
+# persistent local instance you keep running across restarts, so it
+# needs real durable storage.
 #
 # Run: docker compose -f infra/identity/docker-compose.yml up -d
 # Console: http://localhost:8083 (bootstrap admin below -- this is
 # Keycloak's OWN master-realm login, separate from the "myfarm" realm's
 # admin/qa-admin users defined in myfarm-realm.json)
 #
-# The client secret and seed-user passwords baked into myfarm-realm.json
-# are local-dev-only values, fine to keep in git for now. A real
-# deployment needs its own generated secrets injected via env vars --
-# secrets management (SOPS/age) is a later phase, not this one.
+# The client secret and seed-user passwords baked into myfarm-realm.json,
+# and the Postgres password below, are local-dev-only values, fine to
+# keep in git for now. A real deployment needs its own generated
+# secrets injected via env vars -- secrets management (SOPS/age) is a
+# later phase, not this one.
+#
+# Phase 4 (data-layer maturation): Keycloak previously ran on its
+# embedded dev-mode H2 database (`start-dev` with no KC_DB set), which
+# is fine for a five-minute smoke test but loses all state -- realm
+# data included -- on every container recreation, and isn't a
+# supported production configuration at all. It's now backed by a
+# real Postgres instance with a named volume, matching what Keycloak
+# actually expects to run against. This Postgres is single-instance,
+# scoped to this one Keycloak -- a clustered/HA Postgres (Patroni) for
+# the platform generally is separate, later infra work, same bucket as
+# clustering MariaDB into Galera.
+#
+# WORKFLOW CHANGE from before: --import-realm only imports a realm
+# that doesn't already exist yet. Previously Keycloak's own storage
+# was thrown away on every `down`/`up` (no volume), so editing
+# myfarm-realm.json and restarting always picked up the change --
+# that's what "docker compose down -v && up -d" was doing earlier
+# this session. Now the realm persists in keycloak-db-data across
+# restarts, so a `down` / plain `up -d` will NOT pick up realm edits
+# any more. To apply a myfarm-realm.json change to this persistent
+# instance: `docker compose -f infra/identity/docker-compose.yml down
+# -v` (wipes keycloak-db-data, forcing a fresh import) then `up -d`.
 services:
+  keycloak-db:
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak-local-only
+    volumes:
+      - keycloak-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
   keycloak:
     image: quay.io/keycloak/keycloak:26.7.2
     command: start-dev --import-realm
+    depends_on:
+      keycloak-db:
+        condition: service_healthy
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: kcadmin
       KC_BOOTSTRAP_ADMIN_PASSWORD: kcadmin-local-only
       KC_HEALTH_ENABLED: "true"
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak-local-only
     ports:
       - "8083:8080"
     volumes:
@@ -32,3 +81,6 @@ services:
       timeout: 5s
       retries: 15
       start_period: 30s
+
+volumes:
+  keycloak-db-data:

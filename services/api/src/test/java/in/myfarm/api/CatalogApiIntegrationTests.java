@@ -1,14 +1,20 @@
 package in.myfarm.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.List;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.interceptor.SimpleKey;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.jdbc.Sql;
@@ -22,6 +28,9 @@ class CatalogApiIntegrationTests {
 
 	@Autowired
 	private MockMvc mockMvc;
+
+	@Autowired
+	private CacheManager cacheManager;
 
 	@Test
 	void returnsOnlyActiveCategoriesInBusinessOrder() throws Exception {
@@ -58,6 +67,22 @@ class CatalogApiIntegrationTests {
 						.value(38))
 				.andExpect(jsonPath("$.items[0].variants[0].subscriptionAllowed")
 						.value(true));
+	}
+
+	@Test
+	void cachesCategoriesLookupInValkey() throws Exception {
+		mockMvc.perform(get("/api/v1/catalog/categories"))
+				.andExpect(status().isOk());
+
+		// Proves the cache is really backed by Valkey (a wrong or missing
+		// spring.cache.type=redis config, or a serialization problem, would
+		// surface here rather than silently falling back to a no-op cache)
+		// -- @Cacheable's default key generator produces SimpleKey.EMPTY
+		// for a no-arg method.
+		Cache cache = cacheManager.getCache("catalog-categories");
+		assertThat(cache).isNotNull();
+		List<?> cached = cache.get(SimpleKey.EMPTY, List.class);
+		assertThat(cached).hasSize(2);
 	}
 
 	@Test

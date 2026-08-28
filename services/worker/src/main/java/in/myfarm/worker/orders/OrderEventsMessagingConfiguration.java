@@ -5,6 +5,7 @@ import tools.jackson.databind.json.JsonMapper;
 import org.springframework.amqp.core.Binding;
 import org.springframework.amqp.core.BindingBuilder;
 import org.springframework.amqp.core.Queue;
+import org.springframework.amqp.core.QueueBuilder;
 import org.springframework.amqp.core.TopicExchange;
 import org.springframework.amqp.support.converter.JacksonJsonMessageConverter;
 import org.springframework.amqp.support.converter.MessageConverter;
@@ -28,9 +29,20 @@ class OrderEventsMessagingConfiguration {
 		return new TopicExchange(ORDERS_EXCHANGE, true, false);
 	}
 
+	// Quorum queue (Raft-replicated across broker nodes) rather than a
+	// classic queue -- classic mirrored queues are deprecated as RabbitMQ's
+	// HA mechanism, quorum queues are the current recommended replacement
+	// (Phase 4: data-layer maturation). Note for a future persistent
+	// broker: a classic queue of this name can't be redeclared as quorum
+	// in place -- that needs a real migration (delete+recreate, or
+	// shovel the backlog across), not just a rolling deploy of this
+	// class. Not a concern yet since today's only broker is the
+	// ephemeral Testcontainers one dev/tests spin up fresh each run.
 	@Bean
 	Queue orderPlacedQueue() {
-		return new Queue(ORDER_PLACED_QUEUE, true);
+		return QueueBuilder.durable(ORDER_PLACED_QUEUE)
+				.quorum()
+				.build();
 	}
 
 	@Bean

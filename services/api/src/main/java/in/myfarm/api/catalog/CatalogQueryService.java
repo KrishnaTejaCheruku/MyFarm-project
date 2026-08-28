@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -36,6 +37,13 @@ class CatalogQueryService {
 		this.variantRepository = variantRepository;
 	}
 
+	// Read-heavy, rarely-changing -- there's no catalog write path yet
+	// (categories/products/variants only change via Flyway seed data or
+	// direct DB access), so a bounded TTL (see
+	// spring.cache.redis.time-to-live) is enough to keep this fresh
+	// without needing cache eviction wired to a write path that doesn't
+	// exist. Backed by Valkey -- see CatalogCacheConfiguration.
+	@Cacheable("catalog-categories")
 	List<CatalogResponses.Category> categories() {
 		return categoryRepository.findByActiveTrueOrderBySortOrderAscIdAsc()
 				.stream()
@@ -43,6 +51,7 @@ class CatalogQueryService {
 				.toList();
 	}
 
+	@Cacheable("catalog-products")
 	CatalogResponses.Page<CatalogResponses.Product> products(
 			String categoryCode, int page, int size) {
 		Pageable pageable = PageRequest.of(page, size, PRODUCT_ORDER);
@@ -66,6 +75,7 @@ class CatalogQueryService {
 				products.getTotalPages());
 	}
 
+	@Cacheable("catalog-product")
 	CatalogResponses.Product product(String slug) {
 		ProductEntity product = productRepository.findBySlugAndActiveTrue(slug)
 				.orElseThrow(() -> new CatalogProductNotFoundException(slug));

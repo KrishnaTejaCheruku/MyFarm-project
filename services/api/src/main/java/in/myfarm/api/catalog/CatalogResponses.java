@@ -1,5 +1,6 @@
 package in.myfarm.api.catalog;
 
+import java.io.Serializable;
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -8,19 +9,19 @@ public final class CatalogResponses {
 	private CatalogResponses() {
 	}
 
-	public record LocalizedText(String en, String te) {
+	public record LocalizedText(String en, String te) implements Serializable {
 	}
 
 	public record Category(
 			String code,
 			String slug,
-			LocalizedText name) {
+			LocalizedText name) implements Serializable {
 	}
 
 	public record Money(
 			String currency,
 			long amountInr,
-			boolean taxInclusive) {
+			boolean taxInclusive) implements Serializable {
 	}
 
 	public record Variant(
@@ -30,7 +31,7 @@ public final class CatalogResponses {
 			Money price,
 			int gstBasisPoints,
 			boolean subscriptionAllowed,
-			String imageKey) {
+			String imageKey) implements Serializable {
 	}
 
 	public record Product(
@@ -39,7 +40,7 @@ public final class CatalogResponses {
 			String categoryCode,
 			LocalizedText name,
 			LocalizedText description,
-			List<Variant> variants) {
+			List<Variant> variants) implements Serializable {
 
 		public Product {
 			variants = List.copyOf(variants);
@@ -51,7 +52,7 @@ public final class CatalogResponses {
 			int page,
 			int size,
 			long totalElements,
-			int totalPages) {
+			int totalPages) implements Serializable {
 
 		public Page {
 			items = List.copyOf(items);
