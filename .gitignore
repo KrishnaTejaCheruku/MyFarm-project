@@ -35,3 +35,4 @@ cypress/downloads/
 .env.*
 !.env.example
 !**/.env.example
+myfarm-5650948.zip
