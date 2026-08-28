@@ -10,14 +10,19 @@ export function HomePage() {
 
 	return (
 		<section>
-			<h1>MyFarm</h1>
-			<p>Fresh produce, delivered on your schedule.</p>
+			<div className="hero">
+				<h1>Fresh produce, delivered on your schedule.</h1>
+				<p>
+					Farm-fresh vegetables, fruits, dairy and staples from
+					MyFarm &mdash; picked, packed, and delivered to your
+					door.
+				</p>
+				<Link className="hero-cta" to="/delivery">
+					Check delivery in your area →
+				</Link>
+			</div>
 
-			<Link className="delivery-check-link" to="/delivery">
-				Check delivery in your area →
-			</Link>
-
-			<h2>Categories</h2>
+			<h2 className="section-title">Shop by category</h2>
 			{categoriesQuery.isPending && <p>Loading categories…</p>}
 			{categoriesQuery.isError && (
 				<p role="alert">Couldn't load categories. Is the API running?</p>
@@ -26,8 +31,17 @@ export function HomePage() {
 				<ul className="category-grid">
 					{categoriesQuery.data.map((category) => (
 						<li key={category.code}>
-							<Link to={`/categories/${category.code}`}>
-								{category.name.en}
+							<Link
+								className="category-card"
+								to={`/categories/${category.code}`}
+							>
+								<img
+									src={`/categories/${category.code}.svg`}
+									alt=""
+									width={72}
+									height={72}
+								/>
+								<span>{category.name.en}</span>
 							</Link>
 						</li>
 					))}

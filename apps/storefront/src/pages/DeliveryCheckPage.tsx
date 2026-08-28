@@ -31,74 +31,81 @@ export function DeliveryCheckPage() {
 
 	return (
 		<section>
-			<Link to="/">← Home</Link>
+			<Link className="back-link" to="/">
+				← Home
+			</Link>
 			<h1>Check delivery in your area</h1>
+			<p>Tell us your area and pincode to see delivery windows and plans.</p>
 
-			<form
-				onSubmit={(event) => {
-					event.preventDefault()
-					setCheckedArea(areaCode)
-					setCheckedPincode(pincode)
-				}}
-			>
-				<label>
-					Service area
-					<select
-						value={areaCode}
-						onChange={(event) => setAreaCode(event.target.value)}
-						required
-					>
-						<option value="" disabled>
-							Select an area
-						</option>
-						{areasQuery.data?.map((area) => (
-							<option key={area.code} value={area.code}>
-								{area.name.en} ({area.city})
+			<div className="delivery-card">
+				<form
+					onSubmit={(event) => {
+						event.preventDefault()
+						setCheckedArea(areaCode)
+						setCheckedPincode(pincode)
+					}}
+				>
+					<label>
+						Service area
+						<select
+							value={areaCode}
+							onChange={(event) => setAreaCode(event.target.value)}
+							required
+						>
+							<option value="" disabled>
+								Select an area
 							</option>
-						))}
-					</select>
-				</label>
-				<label>
-					Pincode
-					<input
-						value={pincode}
-						onChange={(event) => setPincode(event.target.value)}
-						pattern="[0-9]{6}"
-						maxLength={6}
-						placeholder="530013"
-						required
-					/>
-				</label>
-				<button type="submit">Check</button>
-			</form>
+							{areasQuery.data?.map((area) => (
+								<option key={area.code} value={area.code}>
+									{area.name.en} ({area.city})
+								</option>
+							))}
+						</select>
+					</label>
+					<label>
+						Pincode
+						<input
+							value={pincode}
+							onChange={(event) => setPincode(event.target.value)}
+							pattern="[0-9]{6}"
+							maxLength={6}
+							placeholder="530013"
+							required
+						/>
+					</label>
+					<button type="submit">Check</button>
+				</form>
+			</div>
 
 			{eligibilityQuery.data && (
-				<p>
+				<div
+					className={`result-banner ${eligibilityQuery.data.serviceable ? 'ok' : 'no'}`}
+				>
 					{eligibilityQuery.data.serviceable
 						? `We deliver to ${eligibilityQuery.data.pincode} in ${eligibilityQuery.data.serviceArea?.name.en}.`
 						: `Sorry, ${eligibilityQuery.data.pincode} isn't in our delivery area yet.`}
-				</p>
+				</div>
 			)}
 
 			{optionsQuery.data && (
 				<>
 					<h2>Delivery windows</h2>
-					<ul>
+					<ul className="info-list">
 						{optionsQuery.data.windows.map((window) => (
 							<li key={window.code}>
-								{window.name.en}: {window.startsAt}–
-								{window.endsAt} (order by{' '}
+								<strong>{window.name.en}</strong>:{' '}
+								{window.startsAt}–{window.endsAt} (order by{' '}
 								{window.cutoffMinutesBefore} min before)
 							</li>
 						))}
 					</ul>
 
 					<h2>Subscription plans</h2>
-					<ul>
+					<ul className="info-list">
 						{optionsQuery.data.plans.map((plan) => (
 							<li key={plan.code}>
-								{plan.name.en} — {plan.billingPeriod} (
-								{plan.durationMonths} month
+								<strong>{plan.name.en}</strong> —{' '}
+								{plan.billingPeriod} ({plan.durationMonths} month
 								{plan.durationMonths > 1 ? 's' : ''})
 							</li>
 						))}

@@ -20,19 +20,24 @@ export function ProductPage() {
 
 	return (
 		<section>
-			<Link to={`/categories/${product.categoryCode}`}>
+			<Link className="back-link" to={`/categories/${product.categoryCode}`}>
 				← Back
 			</Link>
-			{product.variants[0] && (
-				<img
-					src={`/products/${product.variants[0].imageKey}.svg`}
-					alt=""
-					width={160}
-					height={160}
-				/>
-			)}
-			<h1>{product.name.en}</h1>
-			<p>{product.description.en}</p>
+
+			<div className="product-hero">
+				{product.variants[0] && (
+					<img
+						src={`/products/${product.variants[0].imageKey}.svg`}
+						alt=""
+						width={140}
+						height={140}
+					/>
+				)}
+				<div>
+					<h1>{product.name.en}</h1>
+					<p>{product.description.en}</p>
+				</div>
+			</div>
 
 			<h2>Variants</h2>
 			<ul className="variant-list">
@@ -41,13 +46,15 @@ export function ProductPage() {
 						<img
 							src={`/products/${variant.imageKey}.svg`}
 							alt=""
-							width={40}
-							height={40}
+							width={44}
+							height={44}
 						/>
-						<span>
+						<span className="variant-qty">
 							{variant.quantity} {variant.unit}
 						</span>
-						<span>₹{variant.price.amountInr}</span>
+						<span className="variant-price">
+							₹{variant.price.amountInr}
+						</span>
 						{variant.subscriptionAllowed && (
 							<span className="badge">Subscribable</span>
 						)}
