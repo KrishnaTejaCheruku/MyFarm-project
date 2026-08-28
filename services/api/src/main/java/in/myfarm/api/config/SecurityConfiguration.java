@@ -21,6 +21,8 @@ class SecurityConfiguration {
 						.requestMatchers(
 								HttpMethod.GET,
 								"/api/v1/catalog/**",
+								"/api/v1/service-areas",
+								"/api/v1/service-areas/**",
 								"/actuator/health",
 								"/actuator/health/**",
 								"/actuator/info")
