@@ -32,7 +32,7 @@ CREATE TABLE delivery_subscription_plan (
     name_en VARCHAR(160) NOT NULL,
     name_te VARCHAR(160) NULL,
     billing_period VARCHAR(16) NOT NULL,
-    duration_months SMALLINT UNSIGNED NOT NULL,
+    duration_months INT UNSIGNED NOT NULL,
     sort_order INT UNSIGNED NOT NULL DEFAULT 0,
     active BOOLEAN NOT NULL DEFAULT TRUE,
     version BIGINT UNSIGNED NOT NULL DEFAULT 0,
