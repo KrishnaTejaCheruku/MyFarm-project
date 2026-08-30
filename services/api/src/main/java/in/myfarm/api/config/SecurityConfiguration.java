@@ -44,6 +44,13 @@ class SecurityConfiguration {
 						// gets a token in the first place.
 						.requestMatchers(HttpMethod.POST, "/api/v1/auth/otp/**")
 						.permitAll()
+						// Plays the role a real gateway's unauthenticated,
+						// signature-verified webhook would play (see the
+						// payment package's MockPaymentSimulatorController)
+						// -- no user session involved, same as the OTP
+						// endpoints above.
+						.requestMatchers(HttpMethod.POST, "/api/v1/payments/mock/**")
+						.permitAll()
 						// Identity phase landed: guest checkout is over,
 						// placing an order now requires a customer-role
 						// token minted via the OTP flow above.

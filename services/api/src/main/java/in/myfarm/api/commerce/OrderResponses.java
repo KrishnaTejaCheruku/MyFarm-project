@@ -18,6 +18,16 @@ public final class OrderResponses {
 			long lineTotalInr) {
 	}
 
+	// Present only for gateway-backed payment methods (ONLINE_UPI) --
+	// null for COD. Carries what the storefront needs to continue a
+	// payment against the gateway (today, the mock gateway -- see the
+	// payment package).
+	public record Payment(
+			String gatewayOrderId,
+			long amountPaise,
+			String currency) {
+	}
+
 	public record Order(
 			String orderNumber,
 			String serviceAreaCode,
@@ -26,6 +36,7 @@ public final class OrderResponses {
 			String status,
 			String paymentMethod,
 			long subtotalInr,
+			Payment payment,
 			List<OrderItem> items) {
 
 		public Order {

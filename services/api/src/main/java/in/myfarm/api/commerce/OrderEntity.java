@@ -1,5 +1,6 @@
 package in.myfarm.api.commerce;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -63,6 +64,19 @@ class OrderEntity {
 	@Column(name = "payment_method", nullable = false, length = 16, updatable = false)
 	private PaymentMethod paymentMethod;
 
+	// Populated only for gateway-backed payment methods (ONLINE_UPI
+	// today). See the payment package -- gatewayOrderId is a single
+	// value because a gateway order accepts multiple payment attempts
+	// (retries) against the same id until one succeeds.
+	@Column(name = "gateway_order_id", length = 64)
+	private String gatewayOrderId;
+
+	@Column(name = "gateway_payment_id", length = 64)
+	private String gatewayPaymentId;
+
+	@Column(name = "paid_at")
+	private Instant paidAt;
+
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false, length = 20)
 	private OrderStatus status;
@@ -123,8 +137,26 @@ class OrderEntity {
 		subtotalInr += item.lineTotalInr();
 	}
 
+	void recordGatewayOrder(String gatewayOrderId) {
+		this.gatewayOrderId = gatewayOrderId;
+	}
+
+	void markPaid(String gatewayPaymentId) {
+		this.gatewayPaymentId = gatewayPaymentId;
+		this.paidAt = Instant.now();
+		this.status = OrderStatus.CONFIRMED;
+	}
+
+	void markPaymentFailed() {
+		this.status = OrderStatus.PAYMENT_FAILED;
+	}
+
 	String orderNumber() {
 		return orderNumber;
+	}
+
+	String gatewayOrderId() {
+		return gatewayOrderId;
 	}
 
 	String serviceAreaCode() {
