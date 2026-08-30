@@ -58,4 +58,14 @@ public final class CatalogResponses {
 			items = List.copyOf(items);
 		}
 	}
+
+	// Deliberately lighter than Product -- no variants/pricing. See
+	// ProductSearchDocument for why: a search hit only needs enough to
+	// link to the full product via slug.
+	public record SearchHit(
+			String code,
+			String slug,
+			String categoryCode,
+			LocalizedText name) implements Serializable {
+	}
 }

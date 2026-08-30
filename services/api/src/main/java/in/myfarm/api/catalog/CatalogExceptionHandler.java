@@ -14,6 +14,9 @@ class CatalogExceptionHandler {
 	private static final URI PRODUCT_NOT_FOUND = URI.create(
 			"urn:myfarm:problem:catalog-product-not-found");
 
+	private static final URI SEARCH_UNAVAILABLE = URI.create(
+			"urn:myfarm:problem:catalog-search-unavailable");
+
 	@ExceptionHandler(CatalogProductNotFoundException.class)
 	ResponseEntity<ProblemDetail> productNotFound(
 			CatalogProductNotFoundException exception) {
@@ -23,5 +26,15 @@ class CatalogExceptionHandler {
 		problem.setTitle("Catalogue product not found");
 		problem.setProperty("slug", exception.slug());
 		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+	}
+
+	@ExceptionHandler(CatalogSearchUnavailableException.class)
+	ResponseEntity<ProblemDetail> searchUnavailable(
+			CatalogSearchUnavailableException exception) {
+		ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+				HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage());
+		problem.setType(SEARCH_UNAVAILABLE);
+		problem.setTitle("Product search unavailable");
+		return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(problem);
 	}
 }

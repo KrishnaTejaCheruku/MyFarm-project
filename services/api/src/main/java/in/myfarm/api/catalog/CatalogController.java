@@ -4,6 +4,7 @@ import java.util.List;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
@@ -20,9 +21,13 @@ public class CatalogController {
 	private static final String CODE_PATTERN = "[a-z0-9]+(?:-[a-z0-9]+)*";
 
 	private final CatalogQueryService catalogQueryService;
+	private final CatalogSearchQueryService catalogSearchQueryService;
 
-	CatalogController(CatalogQueryService catalogQueryService) {
+	CatalogController(
+			CatalogQueryService catalogQueryService,
+			CatalogSearchQueryService catalogSearchQueryService) {
 		this.catalogQueryService = catalogQueryService;
+		this.catalogSearchQueryService = catalogSearchQueryService;
 	}
 
 	@GetMapping("/categories")
@@ -46,5 +51,13 @@ public class CatalogController {
 			@Size(max = 160)
 			@Pattern(regexp = CODE_PATTERN) String slug) {
 		return catalogQueryService.product(slug);
+	}
+
+	@GetMapping("/search")
+	public CatalogResponses.Page<CatalogResponses.SearchHit> search(
+			@RequestParam @NotBlank @Size(max = 200) String q,
+			@RequestParam(defaultValue = "0") @Min(0) int page,
+			@RequestParam(defaultValue = "20") @Min(1) @Max(50) int size) {
+		return catalogSearchQueryService.search(q, page, size);
 	}
 }

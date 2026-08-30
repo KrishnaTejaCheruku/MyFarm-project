@@ -1,5 +1,6 @@
 package in.myfarm.api.catalog;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
@@ -11,6 +12,11 @@ interface ProductRepository extends JpaRepository<ProductEntity, Long> {
 
 	@EntityGraph(attributePaths = "category")
 	Page<ProductEntity> findByActiveTrue(Pageable pageable);
+
+	// Unpaged variant for CatalogSearchIndexService -- reindexing needs
+	// every active product at once, not a page of them.
+	@EntityGraph(attributePaths = "category")
+	List<ProductEntity> findByActiveTrue();
 
 	@EntityGraph(attributePaths = "category")
 	Page<ProductEntity> findByActiveTrueAndCategory_CodeIgnoreCase(
