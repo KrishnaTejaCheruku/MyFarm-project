@@ -1,0 +1,18 @@
+# Galera config for mariadb-galera-1. See ../docker-compose.yml's
+# header comment for the cluster-wide design notes (bootstrap
+# approach, SST method, local-dev-only credentials, verified
+# references for every setting below).
+[mariadb]
+wsrep_on               = ON
+wsrep_provider         = /usr/lib/galera/libgalera_smm.so
+wsrep_cluster_name     = myfarm-galera
+wsrep_cluster_address  = gcomm://mariadb-galera-1,mariadb-galera-2,mariadb-galera-3
+wsrep_node_address     = mariadb-galera-1
+wsrep_node_name        = mariadb-galera-1
+wsrep_sst_method       = mariabackup
+wsrep_sst_auth         = root:galera-local-only
+
+binlog_format             = ROW
+default_storage_engine    = InnoDB
+innodb_autoinc_lock_mode  = 2
+bind-address              = 0.0.0.0

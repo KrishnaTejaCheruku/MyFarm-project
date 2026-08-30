@@ -1,0 +1,141 @@
+# Local-dev/validation MariaDB Galera Cluster (Phase 4: data layer
+# maturation). NOT used by tests -- integration tests still run their
+# own single, ephemeral MariaDB via Testcontainers (see
+# services/api/src/test/java/in/myfarm/api/TestcontainersConfiguration.java);
+# a real synchronous multi-master cluster brings nothing to a test run
+# that always starts and tears down fresh, and would only add startup
+# time. This compose file exists to actually validate Galera
+# replication and failure tolerance locally.
+#
+# Every setting here was checked against real sources rather than
+# assumed -- see mariadb-galera/Dockerfile's header for why this
+# builds its own image instead of using bitnami/mariadb-galera
+# (Bitnami discontinued free images for most of its catalog on
+# 2025-08-28) or severalnines/mariadb (abandoned since 2018, its own
+# README says so). All three nodes build from that Dockerfile, which
+# layers galera-4 -- confirmed as the real, current package name for
+# MariaDB 10.4+'s wsrep provider -- onto the exact same mariadb:11.4.13
+# image already pinned in TestcontainersConfiguration.
+#
+# Bootstrap approach: mariadb-galera-1 always starts with
+# --wsrep-new-cluster, i.e. it always considers itself the seed/
+# primary node on `docker compose up`, using whatever's already in its
+# own data volume (this does NOT discard existing data -- it just
+# skips waiting for peers to be present before forming a Primary
+# component). mariadb-galera-2/3 always join fresh via
+# wsrep_cluster_address and get synced from node 1 via SST
+# (mariabackup) or IST. This is a deliberate local-dev simplification,
+# matching how infra/identity/docker-compose.yml documents its own
+# tradeoffs: a real production runbook would elect whichever node has
+# the most advanced replication state to bootstrap from after an
+# unclean shutdown of the whole cluster, not always node 1 -- don't
+# reuse this compose file's bootstrap logic as a production runbook.
+#
+# Credentials here (MARIADB_ROOT_PASSWORD, and the matching
+# wsrep_sst_auth in each node's .cnf) are local-dev-only values, same
+# as infra/identity/docker-compose.yml -- real secrets management is
+# still a later phase. Using root for wsrep_sst_auth is the simplest
+# thing that works locally; a production deployment should use a
+# dedicated SST user with only the privileges mariabackup actually
+# needs.
+#
+# Run:   docker compose -f infra/data/docker-compose.yml up -d --build
+#
+# Verify the cluster actually formed (should print 3 once all three
+# nodes are up -- give it a minute, SST on first join takes a while):
+#   docker compose -f infra/data/docker-compose.yml exec mariadb-galera-1 \
+#     mariadb -uroot -pgalera-local-only -e "SHOW STATUS LIKE 'wsrep_cluster_size';"
+#
+# Verify it tolerates a node loss:
+#   docker compose -f infra/data/docker-compose.yml stop mariadb-galera-2
+#   docker compose -f infra/data/docker-compose.yml exec mariadb-galera-1 \
+#     mariadb -uroot -pgalera-local-only -e \
+#     "SHOW STATUS LIKE 'wsrep_cluster_size'; SHOW STATUS LIKE 'wsrep_cluster_status';"
+#   # expect cluster_size=2, cluster_status=Primary (quorum holds: 2 of 3)
+#   docker compose -f infra/data/docker-compose.yml start mariadb-galera-2
+#   # then re-run the first check and expect cluster_size back to 3
+#
+# Verify actual data replication across nodes:
+#   docker compose -f infra/data/docker-compose.yml exec mariadb-galera-1 \
+#     mariadb -uroot -pgalera-local-only myfarm -e \
+#     "CREATE TABLE IF NOT EXISTS galera_smoke_test(id INT); INSERT INTO galera_smoke_test VALUES (1);"
+#   docker compose -f infra/data/docker-compose.yml exec mariadb-galera-3 \
+#     mariadb -uroot -pgalera-local-only myfarm -e \
+#     "SELECT * FROM galera_smoke_test;"
+#   # written on node 1, should read back on node 3 immediately
+#
+# Wiring services/api to this cluster: deliberately NOT done in this
+# change -- services/api currently has no real (non-Testcontainers)
+# spring.datasource.url at all, so `./mvnw spring-boot:run` doesn't
+# work today regardless of this cluster (see floci-coverage.md,
+# Environment limits). Pointing it at this cluster once it's verified
+# working is a natural next step (MariaDB Connector/J supports
+# jdbc:mariadb:failover://host1,host2,host3/db for multi-host
+# failover) -- ask if you want that wired up too.
+services:
+  mariadb-galera-1:
+    build: ./mariadb-galera
+    command: --wsrep-new-cluster
+    environment:
+      MARIADB_ROOT_PASSWORD: galera-local-only
+      MARIADB_DATABASE: myfarm
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mariadb-galera/node1.cnf:/etc/mysql/conf.d/galera.cnf:ro
+      - mariadb-galera-1-data:/var/lib/mysql
+    healthcheck:
+      # A nonzero wsrep_cluster_size means this node has formed (or
+      # joined) a Primary component -- not a full "Synced" state
+      # check, but enough to safely gate the other two nodes' startup
+      # order below.
+      test: ["CMD-SHELL", "mariadb -uroot -p$$MARIADB_ROOT_PASSWORD -e \"SHOW STATUS LIKE 'wsrep_cluster_size';\" | grep -q '[1-9]'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  mariadb-galera-2:
+    build: ./mariadb-galera
+    depends_on:
+      mariadb-galera-1:
+        condition: service_healthy
+    environment:
+      MARIADB_ROOT_PASSWORD: galera-local-only
+      MARIADB_DATABASE: myfarm
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./mariadb-galera/node2.cnf:/etc/mysql/conf.d/galera.cnf:ro
+      - mariadb-galera-2-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb -uroot -p$$MARIADB_ROOT_PASSWORD -e \"SHOW STATUS LIKE 'wsrep_cluster_size';\" | grep -q '[1-9]'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+  mariadb-galera-3:
+    build: ./mariadb-galera
+    depends_on:
+      mariadb-galera-1:
+        condition: service_healthy
+    environment:
+      MARIADB_ROOT_PASSWORD: galera-local-only
+      MARIADB_DATABASE: myfarm
+    ports:
+      - "3308:3306"
+    volumes:
+      - ./mariadb-galera/node3.cnf:/etc/mysql/conf.d/galera.cnf:ro
+      - mariadb-galera-3-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb -uroot -p$$MARIADB_ROOT_PASSWORD -e \"SHOW STATUS LIKE 'wsrep_cluster_size';\" | grep -q '[1-9]'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 60s
+
+volumes:
+  mariadb-galera-1-data:
+  mariadb-galera-2-data:
+  mariadb-galera-3-data:
