@@ -130,30 +130,76 @@ infra/floci-liftandshift/
     └── web.sh    # nginx reverse proxy config, does NOT start nginx
 ```
 
-## Not yet verified end-to-end
+## Status: applied and verified end-to-end (2026-08-30)
 
-Written and internally reviewed (every `.tf` file hand-checked for brace/
-argument correctness -- no `terraform` binary available in the sandbox
-this was written from, so `terraform validate`/`plan`/`apply` have not
-actually been run by anyone yet). Per the project's standing workflow
-rule, Krishna owns running this. Most likely rough edges, in the order
-you'll hit them:
+Real `terraform apply` on Krishna's Mac, multiple times, culminating in
+a real request/response chain: `curl http://localhost:<published-port>/`
+-> nginx (web01) -> Tomcat/Spring Security (app01) 302 redirect ->
+`/login` -> the actual rendered VProfile login page HTML, RabbitMQ
+connected, WAR deployed. Four real bugs were found and fixed along the
+way -- worth knowing about before your next `apply`:
 
-1. `terraform init`/`plan` -- straightforward HCL/provider errors, if any.
-2. `mysql_install_db` vs `mariadb-install-db` naming on `mariadb105-server`
-   -- `db.sh` tries the older name and swallows the error; if the datadir
-   never actually initializes, `mysqld_safe` will hang instead of failing
-   loudly.
-3. `mq.sh`'s `apt-get install -y rabbitmq-server` -- depends on Ubuntu's
-   `universe` component being enabled on Floci's `ami-ubuntu2404` image;
-   `add-apt-repository universe` is a defensive fallback, not a
-   confirmed-necessary step.
-4. `scripts/wire.sh`'s SSM RunCommand calls -- if app01/web01 haven't
-   finished their own userdata (Maven build, Tomcat/nginx install) by
-   the time `null_resource.wire` fires, the `catalina.sh start`/`nginx`
-   commands could run before the software they're starting exists.
-   Re-running `aws ssm send-command` manually (or re-`apply`ing) should
-   recover.
+1. **Point 4566 at the wrong Floci instance and everything "works" against
+   an empty universe.** If any *other* Floci-compatible stack (e.g. the
+   [floci-ui](https://github.com/floci-io/floci-ui) dashboard, which
+   bundles its own `floci` service) is also running, it can grab host
+   port 4566 first. Terraform will happily apply against whichever
+   Floci answers on that port -- Terraform itself gives no signal
+   anything is wrong. Always confirm
+   `docker ps --format "table {{.Names}}\t{{.Ports}}" | grep floci`
+   shows `vprofile-floci-floci-1` (not some other project's `floci`)
+   bound to `0.0.0.0:4566` before `apply`ing. If you run `floci-ui`
+   alongside this, start it with `docker compose up -d --no-deps
+   floci-ui floci-api` -- its `floci-api` service `depends_on` its own
+   `floci`/`floci-az`/`floci-gcp`/`floci-seed`, so a plain `up` without
+   `--no-deps` pulls in a second, unrelated Floci instance.
+2. **`wire.sh`'s SSM commands were fire-and-forget.** `aws ssm
+   send-command` only queues a command -- it returns as soon as Floci
+   *accepts* the request, not once it's actually delivered/executed.
+   The original script treated accept-and-return as done. Confirmed
+   live: the `/etc/hosts` writes (cheap, fast) landed reliably, but the
+   `catalina.sh start`/`nginx` commands were silently dropped on a real
+   run -- no error, no log entry, just nothing happened. Fixed:
+   `wire.sh` now polls `get-command-invocation` until each command
+   reaches `Success`/`Failed`, and retries once if it doesn't.
+3. **Even delivered, `catalina.sh start` can still lose the race against
+   `app.sh`'s own Maven build.** `null_resource.wire` only waits for the
+   5 instances to exist, not for their userdata to finish. If app01's
+   Maven build/Tomcat install is still running when `wire.sh` fires,
+   the start command executes against a Tomcat that isn't fully in
+   place yet and fails quietly (nginx then 502s once web01's leg is
+   fine). Not yet fixed in the script itself -- if `curl` 502s well
+   after `apply` finished, check app01 directly:
+   ```bash
+   export AWS_ACCESS_KEY_ID=test AWS_SECRET_ACCESS_KEY=test \
+     AWS_ENDPOINT_URL=http://localhost:4566 AWS_DEFAULT_REGION=us-east-1
+   aws ssm send-command --instance-ids <app01-id> \
+     --document-name "AWS-RunShellScript" \
+     --parameters 'commands=["su -s /bin/bash tomcat -c \"/opt/tomcat/bin/catalina.sh start\""]'
+   ```
+   and re-`curl` after ~10s. A real fix would have `wire.sh` poll for
+   `/tmp/app-userdata-complete` (app01) and nginx's own marker before
+   attempting to start either service.
+4. **Resource contention produces the exact same symptom as a config
+   bug.** `aws_instance` create failing with `unexpected state
+   'terminated'` (not a Floci/AWS API error) means Docker itself killed
+   the container the instant it started -- almost always because too
+   much else is running at once on a ~3.8GB Docker Desktop cap (the k3d
+   cluster from `infra/kubernetes/` is the single biggest offender; stop
+   it with `docker stop k3d-<cluster>-server-0 k3d-<cluster>-agent-*
+   k3d-<cluster>-serverlb k3d-<cluster>-tools` before applying this).
+   Also watch for orphaned `floci-ec2-i-*`/`floci-ec2-fwd-*` containers
+   left behind by bug #1 above -- `terraform destroy` run against the
+   *correct* Floci has no record of instances created against the
+   *wrong* one, so it reports success without actually removing them;
+   clean those up with `docker rm -f` directly.
 
-Report back with real output at each stage -- same pattern as every
-other phase in this project -- rather than assuming green.
+Find published ports and verify:
+
+```bash
+docker logs vprofile-floci-floci-1 2>&1 | grep -i publish
+curl -i http://localhost:<web01's port 80 mapping>/
+curl -i http://localhost:<web01's port 80 mapping>/login
+```
+
+Tear down with `terraform destroy` when done.
