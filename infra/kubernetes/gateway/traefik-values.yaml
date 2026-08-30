@@ -1,0 +1,33 @@
+# Traefik configured as a Gateway API controller instead of its own
+# IngressRoute CRDs -- matches the target architecture ("Traefik Gateway
+# API", not "Traefik Ingress"). The chart's built-in `gateway` block
+# auto-creates a GatewayClass + Gateway named "traefik-gateway" once
+# providers.kubernetesGateway.enabled is true (confirmed against
+# Traefik's own "Kubernetes and Traefik Quick Start" docs, v3.7) --
+# HTTPRoutes reference that Gateway by name via parentRefs.
+providers:
+  kubernetesGateway:
+    enabled: true
+  kubernetesCRD:
+    enabled: true # kept on -- doesn't conflict with Gateway API, useful for the dashboard IngressRoute below
+
+gateway:
+  listeners:
+    web:
+      namespacePolicy:
+        from: All
+
+ingressRoute:
+  dashboard:
+    enabled: true
+    matchRule: "Host(`dashboard.localhost`)"
+    entryPoints:
+      - web
+
+# No LoadBalancer IPAM in this cluster (k3s's built-in servicelb is
+# disabled -- see scripts/bootstrap.sh -- to avoid it fighting Cilium
+# over LB IP assignment, and Cilium's own LB-IPAM isn't set up either).
+# NodePort keeps this reachable with kubectl port-forward regardless,
+# which is the simplest thing to verify against tonight.
+service:
+  type: NodePort
